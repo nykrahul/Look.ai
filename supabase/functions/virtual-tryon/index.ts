@@ -32,7 +32,7 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Use Gemini's image generation model for the try-on
+    // Use Gemini's next-gen image model for virtual try-on
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -40,26 +40,32 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image",
+        model: "google/gemini-3-pro-image-preview",
         messages: [
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: `You are a professional virtual try-on AI. Your task is to create a realistic image of the person wearing the clothing item.
+                text: `VIRTUAL TRY-ON TASK:
 
-INSTRUCTIONS:
-1. Analyze the person's body pose, shape, and proportions from the first image
-2. Extract the clothing item (shirt, pants, dress, etc.) from the second image
-3. Generate a new image showing the person wearing this exact clothing item
-4. The clothing must be properly warped to match the person's body pose and shape
-5. Maintain the person's face, hair, skin tone, and background
-6. Apply realistic shadows, folds, and wrinkles to the clothing
-7. Ensure the lighting on the clothing matches the original photo's lighting
-8. The result should look like a natural photograph, not a collage
+I have two images:
+1. IMAGE 1 (First image): A photo of a person - this is the TARGET PERSON
+2. IMAGE 2 (Second image): A photo of clothing/garment - this is the NEW CLOTHES
 
-IMPORTANT: Generate a full-body or half-body image (matching the input) showing the person naturally wearing the clothing.`
+YOUR TASK: Generate a NEW image where the TARGET PERSON from Image 1 is wearing the EXACT CLOTHES from Image 2.
+
+CRITICAL REQUIREMENTS:
+- REMOVE the person's current clothing completely
+- REPLACE it with the exact garment from Image 2 (the black and grey polo shirt)
+- Keep the same person (face, hair, skin tone, body pose)
+- Keep the same background and environment
+- The new clothes must be realistically fitted to their body
+- Add proper shadows and fabric folds
+- Match the lighting of the original scene
+
+DO NOT just return the original photo. You MUST change the clothes to match Image 2.
+Generate a photorealistic result of this person wearing the new outfit.`
               },
               {
                 type: "image_url",
