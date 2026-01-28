@@ -1,7 +1,9 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Wand2, Download, RefreshCw, Sparkles } from "lucide-react";
+import { Wand2, Download, RefreshCw, Sparkles, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 import UploadZone from "./UploadZone";
+import { generateTryOn } from "@/services/tryOnService";
 
 interface TryOnSectionProps {
   id?: string;
@@ -12,12 +14,14 @@ const TryOnSection = ({ id }: TryOnSectionProps) => {
   const [clothingPhoto, setClothingPhoto] = useState<string | null>(null);
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleUserPhotoUpload = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       setUserPhoto(e.target?.result as string);
       setResultImage(null);
+      setError(null);
     };
     reader.readAsDataURL(file);
   }, []);
@@ -27,6 +31,7 @@ const TryOnSection = ({ id }: TryOnSectionProps) => {
     reader.onload = (e) => {
       setClothingPhoto(e.target?.result as string);
       setResultImage(null);
+      setError(null);
     };
     reader.readAsDataURL(file);
   }, []);
@@ -35,14 +40,27 @@ const TryOnSection = ({ id }: TryOnSectionProps) => {
     if (!userPhoto || !clothingPhoto) return;
     
     setIsGenerating(true);
+    setError(null);
     
-    // Simulate AI generation - in production, this would call an actual AI service
-    await new Promise((resolve) => setTimeout(resolve, 3000));
-    
-    // For demo, we'll show the user's photo as the result
-    // In production, this would be the AI-generated try-on image
-    setResultImage(userPhoto);
-    setIsGenerating(false);
+    try {
+      const result = await generateTryOn(userPhoto, clothingPhoto);
+      
+      if (result.success && result.image) {
+        setResultImage(result.image);
+        toast.success("Virtual try-on generated successfully!");
+      } else {
+        const errorMessage = result.error || "Failed to generate try-on";
+        setError(errorMessage);
+        toast.error(errorMessage);
+        console.error("Try-on error details:", result.details);
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "An unexpected error occurred";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleDownload = () => {
@@ -57,6 +75,7 @@ const TryOnSection = ({ id }: TryOnSectionProps) => {
     setUserPhoto(null);
     setClothingPhoto(null);
     setResultImage(null);
+    setError(null);
   };
 
   const canGenerate = userPhoto && clothingPhoto && !isGenerating;
@@ -162,6 +181,24 @@ const TryOnSection = ({ id }: TryOnSectionProps) => {
                         Download
                       </button>
                     </div>
+                  </motion.div>
+                ) : error ? (
+                  <motion.div
+                    key="error"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 flex flex-col items-center justify-center p-6"
+                  >
+                    <div className="w-16 h-16 rounded-full bg-destructive/10 flex items-center justify-center mb-4">
+                      <AlertCircle className="w-8 h-8 text-destructive" />
+                    </div>
+                    <p className="text-destructive font-medium text-center mb-2">
+                      Generation Failed
+                    </p>
+                    <p className="text-muted-foreground text-sm text-center">
+                      {error}
+                    </p>
                   </motion.div>
                 ) : (
                   <motion.div
