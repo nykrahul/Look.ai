@@ -1,13 +1,19 @@
 import { useState, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Wand2, Download, RefreshCw, Sparkles, AlertCircle } from "lucide-react";
+import { Wand2, Download, RefreshCw, Sparkles, AlertCircle, Shirt } from "lucide-react";
 import { toast } from "sonner";
 import UploadZone from "./UploadZone";
-import { generateTryOn } from "@/services/tryOnService";
+import { generateTryOn, GarmentCategory } from "@/services/tryOnService";
 
 interface TryOnSectionProps {
   id?: string;
 }
+
+const categoryOptions: { value: GarmentCategory; label: string; icon: string }[] = [
+  { value: "upper_body", label: "Top / Shirt", icon: "👕" },
+  { value: "lower_body", label: "Pants / Skirt", icon: "👖" },
+  { value: "dresses", label: "Dress / Full Body", icon: "👗" },
+];
 
 const TryOnSection = ({ id }: TryOnSectionProps) => {
   const [userPhoto, setUserPhoto] = useState<string | null>(null);
@@ -15,6 +21,8 @@ const TryOnSection = ({ id }: TryOnSectionProps) => {
   const [resultImage, setResultImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [category, setCategory] = useState<GarmentCategory>("upper_body");
+  const [garmentDescription, setGarmentDescription] = useState("");
 
   const handleUserPhotoUpload = useCallback((file: File) => {
     const reader = new FileReader();
@@ -43,7 +51,7 @@ const TryOnSection = ({ id }: TryOnSectionProps) => {
     setError(null);
     
     try {
-      const result = await generateTryOn(userPhoto, clothingPhoto);
+      const result = await generateTryOn(userPhoto, clothingPhoto, garmentDescription, category);
       
       if (result.success && result.image) {
         setResultImage(result.image);
@@ -76,6 +84,8 @@ const TryOnSection = ({ id }: TryOnSectionProps) => {
     setClothingPhoto(null);
     setResultImage(null);
     setError(null);
+    setCategory("upper_body");
+    setGarmentDescription("");
   };
 
   const canGenerate = userPhoto && clothingPhoto && !isGenerating;
@@ -100,6 +110,42 @@ const TryOnSection = ({ id }: TryOnSectionProps) => {
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">
             Upload your photo and the outfit you want to try. Our AI will do the magic.
           </p>
+        </motion.div>
+
+        {/* Category Selection */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="max-w-5xl mx-auto mb-8"
+        >
+          <h3 className="font-display text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
+            <Shirt className="w-5 h-5 text-primary" />
+            Garment Type
+          </h3>
+          <div className="flex flex-wrap gap-3 mb-4">
+            {categoryOptions.map((option) => (
+              <button
+                key={option.value}
+                onClick={() => setCategory(option.value)}
+                className={`px-4 py-2 rounded-full border-2 font-medium transition-all ${
+                  category === option.value
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-border bg-background text-foreground hover:border-primary/50"
+                }`}
+              >
+                <span className="mr-2">{option.icon}</span>
+                {option.label}
+              </button>
+            ))}
+          </div>
+          <input
+            type="text"
+            value={garmentDescription}
+            onChange={(e) => setGarmentDescription(e.target.value)}
+            placeholder="Describe the garment (e.g., 'black polo shirt with grey stripes')"
+            className="w-full max-w-md px-4 py-3 rounded-xl border border-border bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+          />
         </motion.div>
 
         {/* Upload Grid */}
