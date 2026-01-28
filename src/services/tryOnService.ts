@@ -8,13 +8,22 @@ export interface TryOnResult {
   details?: string;
 }
 
+export type GarmentCategory = "upper_body" | "lower_body" | "dresses";
+
 export async function generateTryOn(
   userPhoto: string,
-  clothingPhoto: string
+  clothingPhoto: string,
+  garmentDescription?: string,
+  category: GarmentCategory = "upper_body"
 ): Promise<TryOnResult> {
   try {
     const { data, error } = await supabase.functions.invoke('virtual-tryon', {
-      body: { userPhoto, clothingPhoto }
+      body: { 
+        userPhoto, 
+        clothingPhoto,
+        garmentDescription: garmentDescription || "clothing item",
+        category
+      }
     });
 
     if (error) {
