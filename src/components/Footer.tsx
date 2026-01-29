@@ -11,7 +11,7 @@ const Footer = () => {
               <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-primary-foreground" />
               </div>
-              <span className="font-display text-xl font-bold">FitSnap</span>
+              <span className="font-display text-xl font-bold">LookLab</span>
             </a>
             <p className="text-white/60 max-w-sm leading-relaxed">
               AI-powered virtual try-on technology that lets you see how any outfit 
@@ -61,7 +61,7 @@ const Footer = () => {
         {/* Bottom */}
         <div className="border-t border-white/10 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-white/40 text-sm">
-            © 2024 FitSnap AI. All rights reserved.
+            © 2025 LookLab. All rights reserved.
           </p>
           <div className="flex gap-6 text-white/40 text-sm">
             <a href="#" className="hover:text-white transition-colors">
