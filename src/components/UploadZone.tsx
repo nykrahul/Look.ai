@@ -1,6 +1,10 @@
 import { useCallback, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Upload, X, Image as ImageIcon, User, Shirt } from "lucide-react";
+import { toast } from "sonner";
+
+// Supported image formats (no GIFs - Gemini doesn't support them)
+const SUPPORTED_FORMATS = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 
 interface UploadZoneProps {
   type: "photo" | "clothing";
@@ -8,6 +12,14 @@ interface UploadZoneProps {
   preview?: string | null;
   onClear: () => void;
 }
+
+const validateImageFormat = (file: File): boolean => {
+  if (!SUPPORTED_FORMATS.includes(file.type)) {
+    toast.error("Unsupported format. Please use JPG, PNG, or WebP images.");
+    return false;
+  }
+  return true;
+};
 
 const UploadZone = ({ type, onUpload, preview, onClear }: UploadZoneProps) => {
   const [isDragging, setIsDragging] = useState(false);
@@ -27,7 +39,7 @@ const UploadZone = ({ type, onUpload, preview, onClear }: UploadZoneProps) => {
       e.preventDefault();
       setIsDragging(false);
       const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith("image/")) {
+      if (file && file.type.startsWith("image/") && validateImageFormat(file)) {
         onUpload(file);
       }
     },
@@ -37,7 +49,7 @@ const UploadZone = ({ type, onUpload, preview, onClear }: UploadZoneProps) => {
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (file) {
+      if (file && validateImageFormat(file)) {
         onUpload(file);
       }
     },
@@ -103,7 +115,7 @@ const UploadZone = ({ type, onUpload, preview, onClear }: UploadZoneProps) => {
             >
               <input
                 type="file"
-                accept="image/*"
+                accept=".jpg,.jpeg,.png,.webp"
                 onChange={handleFileChange}
                 className="hidden"
               />
