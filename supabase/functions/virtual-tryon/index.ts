@@ -21,6 +21,30 @@ serve(async (req) => {
       );
     }
 
+    // Validate image formats - Gemini doesn't support GIF
+    const isValidFormat = (dataUrl: string): boolean => {
+      const mimeMatch = dataUrl.match(/^data:(image\/[a-zA-Z]+);base64,/);
+      if (!mimeMatch) return false;
+      const mime = mimeMatch[1].toLowerCase();
+      return ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'].includes(mime);
+    };
+
+    if (!isValidFormat(userPhoto)) {
+      console.error("Invalid user photo format");
+      return new Response(
+        JSON.stringify({ error: "User photo format not supported. Please use JPG, PNG, or WebP." }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!isValidFormat(clothingPhoto)) {
+      console.error("Invalid clothing photo format");
+      return new Response(
+        JSON.stringify({ error: "Clothing photo format not supported. Please use JPG, PNG, or WebP." }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       console.error("LOVABLE_API_KEY is not configured");
