@@ -67,46 +67,38 @@ serve(async (req) => {
     const garmentType = categoryDescriptions[category] || categoryDescriptions.upper_body;
     const description = garmentDescription || "the clothing item";
 
-    const prompt = `VIRTUAL TRY-ON TASK - CRITICAL INSTRUCTIONS:
+    const prompt = `Virtual clothing try-on: Take the ${garmentType} from the second image and put it on the person in the first image. Keep the person's face, body, pose, and background exactly the same. Only change their clothing to match what's shown in the second image. Generate a realistic photo.`;
 
-IMAGE 1 (FIRST IMAGE) = TARGET PERSON - This is the customer who wants to try on clothes.
-IMAGE 2 (SECOND IMAGE) = SOURCE CLOTHING - This contains the ${garmentType} (${description}) to be transferred.
+    const makeRequest = async (attempt: number) => {
+      console.log(`Attempt ${attempt}: Making AI request...`);
+      
+      const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "google/gemini-3-pro-image-preview",
+          messages: [
+            {
+              role: "user",
+              content: [
+                { type: "text", text: prompt },
+                { type: "image_url", image_url: { url: userPhoto } },
+                { type: "image_url", image_url: { url: clothingPhoto } }
+              ]
+            }
+          ],
+          modalities: ["image", "text"]
+        }),
+      });
 
-YOUR TASK: Take the CLOTHING from IMAGE 2 and put it onto the PERSON from IMAGE 1.
+      return response;
+    };
 
-STRICT RULES:
-1. The OUTPUT must show the PERSON from IMAGE 1 (first image) - their face, hair, skin tone, body shape, pose, and background must remain EXACTLY the same.
-2. ONLY the clothing changes - extract the ${garmentType} from IMAGE 2 (second image) and dress the person from IMAGE 1 in it.
-3. The person's identity from IMAGE 2 is IRRELEVANT - we only want their CLOTHES, not their face or body.
-4. Any body type or photo size/resolution is acceptable - just focus on transferring the garment.
-5. Make the clothing fit naturally with realistic shadows, wrinkles, and lighting matching the first image.
-
-DO NOT: Show the person from IMAGE 2. We want IMAGE 1's person wearing IMAGE 2's clothes.
-
-Generate ONE photorealistic image of the person from the FIRST image wearing the clothing from the SECOND image.`;
-
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-pro-image-preview",
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: prompt },
-              { type: "image_url", image_url: { url: userPhoto } },
-              { type: "image_url", image_url: { url: clothingPhoto } }
-            ]
-          }
-        ],
-        modalities: ["image", "text"]
-      }),
-    });
-
+    let response = await makeRequest(1);
+    
     if (!response.ok) {
       const errorText = await response.text();
       console.error("AI gateway error:", response.status, errorText);
@@ -130,15 +122,25 @@ Generate ONE photorealistic image of the person from the FIRST image wearing the
       );
     }
 
-    const data = await response.json();
+    let data = await response.json();
     console.log("AI response received");
 
-    const generatedImage = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    let generatedImage = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+    
+    // Retry up to 2 more times if no image was generated
+    for (let attempt = 2; attempt <= 3 && !generatedImage; attempt++) {
+      console.log(`No image in attempt ${attempt - 1}, retrying...`);
+      response = await makeRequest(attempt);
+      if (response.ok) {
+        data = await response.json();
+        generatedImage = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+      }
+    }
     
     if (!generatedImage) {
-      console.error("No image in response:", JSON.stringify(data));
+      console.error("No image after all attempts:", JSON.stringify(data));
       return new Response(
-        JSON.stringify({ error: "No image was generated. Please try with different photos." }),
+        JSON.stringify({ error: "The AI couldn't generate the try-on. Please try different photos - clear front-facing photos work best." }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
