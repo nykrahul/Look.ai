@@ -3,8 +3,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Upload, X, Image as ImageIcon, User, Shirt } from "lucide-react";
 import { toast } from "sonner";
 
-// Supported image formats (no GIFs - Gemini doesn't support them)
-const SUPPORTED_FORMATS = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+// Accept all common image formats - we'll convert unsupported ones
+const AI_SUPPORTED_FORMATS = ['image/jpeg', 'image/png', 'image/webp'];
 
 interface UploadZoneProps {
   type: "photo" | "clothing";
@@ -13,16 +13,56 @@ interface UploadZoneProps {
   onClear: () => void;
 }
 
-const validateImageFormat = (file: File): boolean => {
-  if (!SUPPORTED_FORMATS.includes(file.type)) {
-    toast.error("Unsupported format. Please use JPG, PNG, or WebP images.");
-    return false;
-  }
-  return true;
+// Convert any image to PNG format for AI compatibility
+const convertToSupportedFormat = async (file: File): Promise<File> => {
+  return new Promise((resolve, reject) => {
+    // If already supported, return as-is
+    if (AI_SUPPORTED_FORMATS.includes(file.type)) {
+      resolve(file);
+      return;
+    }
+
+    // Convert to PNG using canvas
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+    
+    img.onload = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        URL.revokeObjectURL(url);
+        reject(new Error('Could not create canvas context'));
+        return;
+      }
+      
+      ctx.drawImage(img, 0, 0);
+      
+      canvas.toBlob((blob) => {
+        URL.revokeObjectURL(url);
+        if (blob) {
+          const convertedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.png'), { type: 'image/png' });
+          resolve(convertedFile);
+        } else {
+          reject(new Error('Could not convert image'));
+        }
+      }, 'image/png', 1.0);
+    };
+    
+    img.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Could not load image'));
+    };
+    
+    img.src = url;
+  });
 };
 
 const UploadZone = ({ type, onUpload, preview, onClear }: UploadZoneProps) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -34,34 +74,52 @@ const UploadZone = ({ type, onUpload, preview, onClear }: UploadZoneProps) => {
     setIsDragging(false);
   }, []);
 
+  const processFile = useCallback(async (file: File) => {
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please upload an image file");
+      return;
+    }
+
+    try {
+      setIsConverting(true);
+      const processedFile = await convertToSupportedFormat(file);
+      onUpload(processedFile);
+    } catch (error) {
+      console.error("Image conversion error:", error);
+      toast.error("Could not process this image. Please try another.");
+    } finally {
+      setIsConverting(false);
+    }
+  }, [onUpload]);
+
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
       const file = e.dataTransfer.files[0];
-      if (file && file.type.startsWith("image/") && validateImageFormat(file)) {
-        onUpload(file);
+      if (file) {
+        processFile(file);
       }
     },
-    [onUpload]
+    [processFile]
   );
 
   const handleFileChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      if (file && validateImageFormat(file)) {
-        onUpload(file);
+      if (file) {
+        processFile(file);
       }
     },
-    [onUpload]
+    [processFile]
   );
 
   const Icon = type === "photo" ? User : Shirt;
   const title = type === "photo" ? "Your Photo" : "Clothing Item";
   const description =
     type === "photo"
-      ? "Upload a front-facing photo with good lighting"
-      : "Upload a shirt, pants, or any outfit piece";
+      ? "Upload a front-facing photo"
+      : "Upload any clothing image or screenshot";
 
   return (
     <motion.div
@@ -115,7 +173,7 @@ const UploadZone = ({ type, onUpload, preview, onClear }: UploadZoneProps) => {
             >
               <input
                 type="file"
-                accept=".jpg,.jpeg,.png,.webp"
+                accept="image/*"
                 onChange={handleFileChange}
                 className="hidden"
               />
@@ -124,17 +182,22 @@ const UploadZone = ({ type, onUpload, preview, onClear }: UploadZoneProps) => {
                 whileHover={{ scale: 1.1 }}
                 whileTap={{ scale: 0.95 }}
               >
-                {isDragging ? (
+                {isConverting ? (
+                  <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                ) : isDragging ? (
                   <ImageIcon className="w-8 h-8 text-primary" />
                 ) : (
                   <Upload className="w-8 h-8 text-primary" />
                 )}
               </motion.div>
               <p className="text-foreground font-medium mb-1">
-                {isDragging ? "Drop image here" : "Click or drag to upload"}
+                {isConverting ? "Processing..." : isDragging ? "Drop image here" : "Click or drag to upload"}
               </p>
               <p className="text-muted-foreground text-sm text-center max-w-[200px]">
                 {description}
+              </p>
+              <p className="text-muted-foreground/60 text-xs mt-2">
+                Any format • Screenshots OK
               </p>
             </motion.label>
           )}
