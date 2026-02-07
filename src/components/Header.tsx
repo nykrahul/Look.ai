@@ -38,7 +38,7 @@ const Header = ({ onTryOn }: HeaderProps) => {
                 isScrolled ? "text-foreground" : "text-white"
               }`}
             >
-              Look
+              Look.ai
             </span>
           </a>
 

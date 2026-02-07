@@ -45,7 +45,7 @@ const FeaturesSection = () => {
           className="text-center mb-16"
         >
           <h2 className="font-display text-3xl sm:text-4xl md:text-5xl font-bold text-foreground mb-4">
-            Why Choose <span className="gradient-text">Look</span>
+            Why Choose <span className="gradient-text">Look.ai</span>
           </h2>
           <p className="text-muted-foreground text-lg max-w-xl mx-auto">
             The smartest way to shop for clothes online. Never wonder how it looks again.
